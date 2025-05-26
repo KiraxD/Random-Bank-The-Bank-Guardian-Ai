@@ -1,0 +1,88 @@
+# Random Bank Project - Startup Commands
+
+### 1. Clone the Repository (if needed)
+```
+git clone https://github.com/your-repo/Random-Bank.git
+cd Random-Bank
+```
+
+### 2. Set Up Environment Variables
+```
+# Copy the example environment file
+cp backend/.env.example backend/.env
+# Edit the .env file with your database credentials and other settings
+```
+
+### 3. Start with Docker Compose (Recommended)
+```
+# Build and start all containers
+docker-compose up -d --build
+
+# Or to rebuild a specific service
+docker-compose up -d --build frontend
+docker-compose up -d --build backend
+```
+
+### 4. Alternative: Manual Setup (without Docker)
+
+#### Backend Setup
+```
+# Navigate to backend directory
+cd backend
+
+# Install dependencies
+npm install
+
+# Start the backend server
+npm start
+
+# For development with auto-reload
+npm run dev
+```
+
+#### Frontend Setup
+```
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the frontend development server
+npm start
+```
+
+### 5. Database Setup
+```
+# If using Docker, the database should be automatically set up
+# If manual setup, run the SQL script to create the database schema
+mysql -u your_username -p < create_reshob_user.sql
+```
+
+### 6. Accessing the Application
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+
+### 7. Restarting Services
+```
+# Restart specific containers if needed
+docker restart random-bank-frontend
+docker restart random-bank-backend
+docker restart random-bank-db
+```
+
+### 8. Viewing Logs
+```
+# View logs for troubleshooting
+docker logs random-bank-frontend
+docker logs random-bank-backend
+```
+
+### 9. Stopping the Application
+```
+# Stop all containers
+docker-compose down
+
+# To also remove volumes (will delete database data)
+docker-compose down -v
+```

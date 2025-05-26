@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persona - Identity Verification System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Face API JS for face detection -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .camera-feed {
+            transform: scaleX(-1);
+        }
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .step-transition {
+            transition: all 0.3s ease-in-out;
+        }
+        .progress-step {
+            transition: all 0.5s ease;
+        }
+        .progress-step-active {
+            background-color: #2563eb;
+        }
+        .progress-step-complete {
+            background-color: #10b981;
+        }
+        .progress-step-incomplete {
+            background-color: #e5e7eb;
+        }
+        .progress-line {
+            transition: all 0.5s ease;
+        }
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 2px solid #2563eb;
+            border-radius: 50%;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-5 px-4 shadow-lg">
+            <div class="container mx-auto flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center">
+                        <i class="bi bi-shield-check mr-2"></i> Persona
+                    </h1>
+                    <p class="text-sm text-blue-100">Secure Identity Verification</p>
+                </div>
+                <div class="hidden md:block">
+                    <div class="flex items-center space-x-1 text-sm">
+                        <i class="bi bi-shield-lock text-blue-200"></i>
+                        <span class="text-blue-100">Bank-grade encryption</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto p-4 flex-grow flex flex-col justify-center">
+            <!-- Progress Indicator -->
+            <div class="max-w-md mx-auto mb-6 px-4">
+                <div class="text-center mb-2">
+                    <p class="text-sm font-medium text-gray-500">Step <span id="current-step-number">1</span> of 4</p>
+                </div>
+                <div class="relative">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex flex-col items-center">
+                            <div id="step-indicator-1" class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium progress-step progress-step-active">
+                                <i class="bi bi-person"></i>
+                            </div>
+                            <span class="text-xs mt-1 text-gray-500">Info</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div id="step-indicator-2" class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium progress-step progress-step-incomplete">
+                                <i class="bi bi-card-image"></i>
+                            </div>
+                            <span class="text-xs mt-1 text-gray-500">ID</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div id="step-indicator-3" class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium progress-step progress-step-incomplete">
+                                <i class="bi bi-camera"></i>
+                            </div>
+                            <span class="text-xs mt-1 text-gray-500">Selfie</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div id="step-indicator-4" class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium progress-step progress-step-incomplete">
+                                <i class="bi bi-check-lg"></i>
+                            </div>
+                            <span class="text-xs mt-1 text-gray-500">Verify</span>
+                        </div>
+                    </div>
+                    <div class="overflow-hidden h-1.5 flex rounded-full bg-gray-200">
+                        <div id="progress-bar" class="bg-blue-600 h-1.5 rounded-full" style="width: 25%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="verification-steps" class="max-w-lg mx-auto w-full">
+                <!-- Step 1: Personal Information -->
+                <div id="step1" class="bg-white p-8 rounded-xl shadow-lg mb-4 step-transition transform transition-all duration-300 ease-in-out">
+                    <div class="flex items-center mb-6">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                            <i class="bi bi-person text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800">Personal Information</h2>
+                    </div>
+                    <p class="text-gray-500 mb-6 text-sm">Please provide your personal details for verification</p>
+                    <form id="personal-info-form" class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="bi bi-person text-gray-400"></i>
+                                </div>
+                                <input type="text" id="name" required class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="bi bi-envelope text-gray-400"></i>
+                                </div>
+                                <input type="email" id="email" required class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="bi bi-phone text-gray-400"></i>
+                                </div>
+                                <input type="tel" id="phone" required class="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center font-medium mt-6 shadow-md">
+                            Continue <i class="bi bi-arrow-right ml-2"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Step 2: Government ID -->
+                <div id="step2" class="hidden bg-white p-8 rounded-xl shadow-lg mb-4 step-transition transform transition-all duration-300 ease-in-out">
+                    <div class="flex items-center mb-6">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                            <i class="bi bi-card-image text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800">Government ID Verification</h2>
+                    </div>
+                    <p class="text-gray-500 mb-6 text-sm">Please upload a clear photo of your government-issued ID</p>
+                    <div class="space-y-5">
+                        <div class="border-2 border-dashed border-gray-300 p-6 text-center rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors duration-200">
+                            <div id="id-preview" class="hidden mb-5">
+                                <img id="id-image" class="max-w-full h-auto mx-auto rounded-lg shadow-md" alt="ID Preview">
+                            </div>
+                            <div id="face-detection-result" class="hidden my-4 p-3 rounded-lg text-center text-sm"></div>
+                            <div id="upload-prompt" class="py-6">
+                                <i class="bi bi-cloud-arrow-up text-4xl text-gray-400 mb-3"></i>
+                                <p class="text-gray-500 mb-3">Drag and drop your ID here or</p>
+                                <label class="cursor-pointer inline-block">
+                                    <input type="file" id="id-upload" accept="image/*" class="hidden">
+                                    <span class="bg-white text-blue-600 hover:text-blue-700 border border-blue-600 font-medium py-2 px-4 rounded-lg transition-colors duration-300">Browse Files</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg flex items-start mb-4">
+                            <i class="bi bi-info-circle text-blue-600 mt-1 mr-3"></i>
+                            <div class="text-sm text-blue-800">
+                                <p class="font-medium">Accepted ID types:</p>
+                                <ul class="list-disc list-inside mt-1 text-blue-700 text-xs">
+                                    <li>Passport</li>
+                                    <li>Driver's License</li>
+                                    <li>National ID Card</li>
+                                    <li>Aadhaar Card</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button id="submit-id" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            Continue <i class="bi bi-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Live Verification -->
+                <div id="step3" class="hidden bg-white p-8 rounded-xl shadow-lg mb-4 step-transition transform transition-all duration-300 ease-in-out">
+                    <div class="flex items-center mb-6">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                            <i class="bi bi-camera text-blue-600 text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800">Selfie Verification</h2>
+                    </div>
+                    <p class="text-gray-500 mb-6 text-sm">Please take a clear selfie to verify your identity</p>
+                    <div class="space-y-5">
+                        <div class="relative rounded-xl overflow-hidden bg-gray-900 aspect-[4/3] flex items-center justify-center">
+                            <video id="camera-feed" class="camera-feed w-full h-full object-cover" autoplay playsinline></video>
+                            <div class="camera-overlay pulse"></div>
+                            <div class="absolute bottom-3 left-3 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
+                                <i class="bi bi-camera-video mr-1"></i> Live Camera
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg flex items-start mb-4">
+                            <i class="bi bi-lightbulb text-blue-600 mt-1 mr-3"></i>
+                            <div class="text-sm text-blue-800">
+                                <p>Position your face within the circle in a well-lit area</p>
+                            </div>
+                        </div>
+                        <button id="capture-photo" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center font-medium shadow-md">
+                            <i class="bi bi-camera mr-2"></i> Capture Photo
+                        </button>
+                        <canvas id="photo-canvas" class="hidden"></canvas>
+                    </div>
+                </div>
+
+                <!-- Step 4: Verification Result -->
+                <div id="step4" class="hidden bg-white p-8 rounded-xl shadow-lg mb-4 step-transition transform transition-all duration-300 ease-in-out">
+                    <h2 class="text-xl font-semibold mb-4 text-center text-gray-800">Verification Result</h2>
+                    <div id="loading" class="text-center py-10">
+                        <div class="inline-block p-6 bg-blue-50 rounded-full mb-4">
+                            <i class="bi bi-arrow-repeat loading text-5xl text-blue-600"></i>
+                        </div>
+                        <p class="text-lg font-medium text-gray-700">Processing verification...</p>
+                        <p class="mt-2 text-gray-500 text-sm">This may take a few moments</p>
+                        <div class="mt-6 max-w-md mx-auto">
+                            <div class="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                                <div id="verification-progress" class="h-full bg-blue-600 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="result" class="hidden text-center py-10">
+                        <div class="inline-block p-6 bg-green-50 rounded-full mb-4">
+                            <i class="bi bi-check-circle text-7xl text-green-500"></i>
+                        </div>
+                        <p class="mt-4 text-2xl font-semibold text-gray-800">Verification Successful</p>
+                        <p class="mt-2 text-gray-600">Your identity has been verified successfully</p>
+                        <div class="mt-8 max-w-sm mx-auto space-y-3">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-500">ID Verification</span>
+                                <span class="text-green-600 font-medium"><i class="bi bi-check-circle mr-1"></i> Verified</span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-500">Face Match</span>
+                                <span class="text-green-600 font-medium"><i class="bi bi-check-circle mr-1"></i> Verified</span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-500">Liveness Check</span>
+                                <span class="text-green-600 font-medium"><i class="bi bi-check-circle mr-1"></i> Verified</span>
+                            </div>
+                        </div>
+                        <button id="return-to-app" class="mt-8 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center font-medium shadow-md mx-auto">
+                            <i class="bi bi-arrow-left-circle mr-2"></i> Return to Transaction
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let userData = {};
+        let stream = null;
+        let transactionData = null;
+        let faceDetectionModelsLoaded = false;
+
+        // Load face-api.js models
+        async function loadFaceDetectionModels() {
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                faceDetectionModelsLoaded = true;
+                console.log('Face detection models loaded successfully');
+            } catch (error) {
+                console.error('Error loading face detection models:', error);
+            }
+        }
+
+        // Detect faces in the uploaded ID image
+        async function detectFacesInID(imageElement) {
+            if (!faceDetectionModelsLoaded) {
+                await loadFaceDetectionModels();
+            }
+            
+            try {
+                const detections = await faceapi.detectAllFaces(imageElement, new faceapi.TinyFaceDetectorOptions());
+                return detections.length > 0;
+            } catch (error) {
+                console.error('Error detecting faces:', error);
+                return false;
+            }
+        }
+
+        // Get transaction data from URL parameters
+        window.addEventListener('DOMContentLoaded', () => {
+            // Load face detection models on page load
+            loadFaceDetectionModels();
+            const urlParams = new URLSearchParams(window.location.search);
+            const transactionDataParam = urlParams.get('transactionData');
+            if (transactionDataParam) {
+                try {
+                    transactionData = JSON.parse(decodeURIComponent(transactionDataParam));
+                    console.log('Transaction data:', transactionData);
+                    
+                    // Pre-fill form with user data if available
+                    if (transactionData.user) {
+                        document.getElementById('name').value = transactionData.user.name || '';
+                        document.getElementById('email').value = transactionData.user.email || '';
+                        document.getElementById('phone').value = transactionData.user.phone || '';
+                    }
+                } catch (e) {
+                    console.error('Error parsing transaction data:', e);
+                }
+            }
+        });
+
+        // Handle Personal Information Form
+        document.getElementById('personal-info-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            userData.name = document.getElementById('name').value;
+            userData.email = document.getElementById('email').value;
+            userData.phone = document.getElementById('phone').value;
+            nextStep();
+        });
+
+        // Handle ID Upload
+        document.getElementById('id-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const imageDataUrl = e.target.result;
+                    const imageElement = document.getElementById('id-image');
+                    imageElement.src = imageDataUrl;
+                    document.getElementById('id-preview').classList.remove('hidden');
+                    
+                    // Show loading message while detecting faces
+                    const faceDetectionResult = document.getElementById('face-detection-result');
+                    faceDetectionResult.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+                    faceDetectionResult.classList.add('bg-blue-100', 'text-blue-700');
+                    faceDetectionResult.innerHTML = '<i class="bi bi-arrow-repeat loading mr-2"></i>Analyzing ID image...';
+                    
+                    // Wait for image to load before detecting faces
+                    imageElement.onload = async () => {
+                        const hasFace = await detectFacesInID(imageElement);
+                        
+                        // Update UI based on face detection result
+                        faceDetectionResult.classList.remove('bg-blue-100', 'text-blue-700');
+                        
+                        if (hasFace) {
+                            faceDetectionResult.classList.add('bg-green-100', 'text-green-700');
+                            faceDetectionResult.innerHTML = '<i class="bi bi-check-circle mr-2"></i>Face detected successfully';
+                            document.getElementById('submit-id').disabled = false;
+                        } else {
+                            faceDetectionResult.classList.add('bg-red-100', 'text-red-700');
+                            faceDetectionResult.innerHTML = '<i class="bi bi-exclamation-triangle mr-2"></i>No face detected. Please upload a valid ID with a clearly visible face.';
+                            document.getElementById('submit-id').disabled = true;
+                        }
+                        
+                        userData.idImage = imageDataUrl;
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle ID Submit
+        document.getElementById('submit-id').addEventListener('click', () => {
+            nextStep();
+            initializeCamera();
+        });
+
+        // Initialize Camera
+        async function initializeCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('camera-feed').srcObject = stream;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                alert('Unable to access camera. Please ensure camera permissions are granted.');
+            }
+        }
+
+        // Handle Photo Capture
+        document.getElementById('capture-photo').addEventListener('click', () => {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.getElementById('photo-canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            userData.selfieImage = canvas.toDataURL('image/jpeg');
+            
+            // Stop camera stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            nextStep();
+            simulateVerification();
+        });
+
+        // Simulate Verification Process
+        function simulateVerification() {
+            // Simulate API call and verification process with progress animation
+            const progressBar = document.getElementById('verification-progress');
+            let progress = 0;
+            
+            // Animate progress bar
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                progressBar.style.width = `${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    setTimeout(() => {
+                        document.getElementById('loading').classList.add('hidden');
+                        document.getElementById('result').classList.remove('hidden');
+                    }, 500);
+                }
+            }, 150);
+            
+            // Here you would typically make API calls to:
+            // 1. Upload the ID image
+            // 2. Upload the selfie image
+            // 3. Perform facial recognition comparison
+            // 4. Verify identity against databases
+        }
+
+        // Navigation Helper
+        function nextStep() {
+            // Hide current step with animation
+            const currentStepElement = document.getElementById(`step${currentStep}`);
+            currentStepElement.classList.add('opacity-0', 'scale-95');
+            
+            setTimeout(() => {
+                currentStepElement.classList.add('hidden');
+                currentStepElement.classList.remove('opacity-0', 'scale-95');
+                
+                // Update progress indicators
+                document.getElementById(`step-indicator-${currentStep}`).classList.remove('progress-step-active');
+                document.getElementById(`step-indicator-${currentStep}`).classList.add('progress-step-complete');
+                
+                // Move to next step
+                currentStep++;
+                
+                // Update current step number display
+                document.getElementById('current-step-number').textContent = currentStep;
+                
+                // Update progress bar
+                const progressPercentage = ((currentStep - 1) / 3) * 100;
+                document.getElementById('progress-bar').style.width = `${progressPercentage}%`;
+                
+                // Show next step with animation
+                const nextStepElement = document.getElementById(`step${currentStep}`);
+                nextStepElement.classList.remove('hidden');
+                nextStepElement.classList.add('opacity-0', 'scale-95');
+                
+                // Activate current step indicator
+                document.getElementById(`step-indicator-${currentStep}`).classList.remove('progress-step-incomplete');
+                document.getElementById(`step-indicator-${currentStep}`).classList.add('progress-step-active');
+                
+                setTimeout(() => {
+                    nextStepElement.classList.remove('opacity-0', 'scale-95');
+                }, 50);
+            }, 300);
+        }
+
+        // Return to transaction
+        document.getElementById('return-to-app').addEventListener('click', () => {
+            // Get the original transaction data
+            const urlParams = new URLSearchParams(window.location.search);
+            const transactionDataParam = urlParams.get('transactionData');
+            
+            if (transactionDataParam) {
+                try {
+                    // Get the transaction data and add verification status
+                    const transactionData = JSON.parse(decodeURIComponent(transactionDataParam));
+                    
+                    // Add verification data
+                    transactionData.verificationComplete = true;
+                    transactionData.verificationTimestamp = new Date().toISOString();
+                    
+                    // Add user data from verification process
+                    if (userData && userData.name) {
+                        transactionData.user = {
+                            ...transactionData.user,
+                            name: userData.name,
+                            email: userData.email || transactionData.user?.email,
+                            phone: userData.phone || transactionData.user?.phone
+                        };
+                    }
+                    
+                    // Add required fields for transaction processing if not present
+                    if (!transactionData.description) {
+                        transactionData.description = `Verified ${transactionData.type || 'payment'}`;
+                    }
+                    
+                    if (!transactionData.notes) {
+                        transactionData.notes = 'Transaction verified via Persona identity verification';
+                    }
+                    
+                    // For payment/transfer transactions, ensure recipient info
+                    if ((transactionData.type === 'payment' || transactionData.type === 'transfer') && 
+                        !transactionData.recipientId && !transactionData.recipientName) {
+                        // Add placeholder recipient info for demo
+                        transactionData.recipientName = 'Demo Recipient';
+                        transactionData.recipientAccountNumber = 'DEMO' + Math.floor(Math.random() * 1000000);
+                    }
+                    
+                    console.log('Sending verified transaction data:', transactionData);
+                    
+                    // Encode the updated transaction data
+                    const encodedData = encodeURIComponent(JSON.stringify(transactionData));
+                    
+                    // Redirect back to the transaction submission endpoint with the verified transaction data
+                    window.location.href = `/submit-verified-transaction.html?transactionData=${encodedData}`;
+                } catch (e) {
+                    console.error('Error processing transaction data:', e);
+                    window.location.href = '/dashboard?verificationError=true';
+                }
+            } else {
+                // No transaction data found, redirect to dashboard
+                window.location.href = '/dashboard?verificationComplete=true';
+            }
+        });
+
+        // Handle API Calls (mocked for this example)
+        async function verifyIdentity(userData) {
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer wUu0XkPC3GO5lM47uXk1iE7Abo83',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "text", text: "Verify facial match" },
+                                    { type: "image_url", image_url: { url: userData.idImage } },
+                                    { type: "image_url", image_url: { url: userData.selfieImage } }
+                                ]
+                            }
+                        ]
+                    })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Verification error:', error);
+                return { success: false, error: 'Verification failed' };
+            }
+        }
+    </script>
+</body>
+</html>
